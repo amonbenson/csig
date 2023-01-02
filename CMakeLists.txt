@@ -5,7 +5,9 @@ project(csig
     DESCRIPTION "signals and slots for C"
     LANGUAGES C)
 
-# dynamic content fetching
+
+# main settings
+enable_testing()
 include(FetchContent)
 
 
@@ -14,6 +16,6 @@ add_subdirectory(src)
 
 # add tests
 add_subdirectory(tests)
-if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR CSIG_BUILD_TESTING) AND BUILD_TESTING)
+#if((CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME OR CSIG_BUILD_TESTING) AND BUILD_TESTING)
     #add_subdirectory(tests)
-endif()
+#endif()

@@ -1,6 +1,9 @@
-# add test file
-add_executable(csig_test src/counter.c src/main.c)
-target_include_directories(csig_test PRIVATE include)
-target_link_libraries(csig_test PRIVATE csig)
+# include bdd for c
+FetchContent_Declare(bdd
+    GIT_REPOSITORY https://github.com/schlegelflegel/bdd-for-c.git
+    GIT_TAG 2647763d531bb73240aed5f7736e230e342eafd5)
+FetchContent_MakeAvailable(bdd)
 
-add_test(NAME csig_test COMMAND csig_test)
+
+# add all test projects
+add_subdirectory(simple)

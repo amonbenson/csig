@@ -20,6 +20,6 @@ typedef struct {
 counter_t *counter_new(void);
 void counter_free(counter_t *counter);
 
-int counter_set(counter_t *counter, void *emitter, int value);
-int counter_increase(counter_t *counter, void *emitter);
-int counter_reset(counter_t *counter, void *emitter);
+int counter_set(counter_t *counter, int value);
+int counter_increase(counter_t *counter);
+int counter_reset(counter_t *counter);
