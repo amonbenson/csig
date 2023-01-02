@@ -1,54 +1,94 @@
-#include <stdio.h>
-#include "csig.h"
+#pragma once
 
 
-#define _STRINGIFY(x) #x
-#define STRINGIFY(x) _STRINGIFY(x)
+#ifndef CS_NO_AUTOINIT
+    #define CS_AUTOINIT
+#endif
+
+#ifndef CS_DEFAULT_CALLBACK
+    #define CS_DEFAULT_CALLBACK(owner, slot) owner ## _ ## slot
+#endif
 
 
-CS_SIGNAL_DEFINE(midi_recv, int a, int b);
+#ifndef NULL
+    #define NULL ((void *) 0)
+#endif
 
+
+#define __CONCATENATE_IMPL(a, b) a ## b
+#define __CONCATENATE(a, b) __CONCATENATE_IMPL(a, b)
+
+
+typedef struct __cs_slot_t {
+    void *_target;
+    int (*_callback)();
+    struct __cs_slot_t *_next;
+} __cs_slot_t;
 
 typedef struct {
-    CS_SIGNAL(midi_recv);
-} midi_t;
+    __cs_slot_t *_rootslot;
+} __cs_signal_t;
 
 
+#define __CS_CALLBACK_TYPE(name) __cs_callback_ ## name ## _t
 
-typedef struct {
-    CS_SLOT(midi_recv);
-} user_t;
+#define CS_SIGNAL_DEFINE(name, args...) \
+    typedef int (*__CS_CALLBACK_TYPE(name))(void *target, void *emitter, ## args)
 
+#define __CS_SIGNAL_MEMBER(name) __cs_signal_ ## name
 
+#define CS_SIGNAL(name) \
+    __cs_signal_t __CS_SIGNAL_MEMBER(name);
 
-int user_midi_recv(user_t *user, midi_t *midi, int a, int b) {
-    printf("user_midi_recv called!\n");
-    return a + b;
-}
-
-
-
-int main() {
-    midi_t midi_obj;
-    user_t user_obj;
-    
-    midi_t *midi = &midi_obj;
-    user_t *user = &user_obj;
+#define CS_SIGNAL_INIT(owner, name) do { \
+    (owner)->__CS_SIGNAL_MEMBER(name)._rootslot = NULL; \
+} while (0)
 
 
-    // init signal
-    CS_SIGNAL_INIT(midi, midi_recv);
+#define __CS_SLOT_MEMBER(name) __cs_slot_ ## name
+
+#define CS_SLOT(name) \
+    __cs_slot_t __CS_SLOT_MEMBER(name);
+
+#define __CS_SLOT_INIT(owner, name, callback, ...) do { \
+    (owner)->__CS_SLOT_MEMBER(name)._target = owner; \
+    (owner)->__CS_SLOT_MEMBER(name)._callback = (int (*)()) (callback); \
+    (owner)->__CS_SLOT_MEMBER(name)._next = NULL; \
+} while (0)
+#define CS_SLOT_INIT(owner, name, callback...) \
+    __CS_SLOT_INIT(owner, name, ## callback, CS_DEFAULT_CALLBACK(owner, name))
 
 
-    // connect slot
-    CS_CONNECT(midi, midi_recv, user, midi_recv);
+#define __CS_CONNECT(head, add) do { \
+    __cs_slot_t *_tmp; \
+    (add)->_next = NULL; \
+    if (head) { \
+        _tmp = (head); \
+        while (_tmp->_next) _tmp = _tmp->_next; \
+        _tmp->_next = (add); \
+    } else { \
+        (head) = (add); \
+    } \
+} while (0);
+
+#ifdef CS_AUTOINIT
+    #define CS_CONNECT(emitter, signal, target, slot) do { \
+        CS_SLOT_INIT(target, slot); \
+        __CS_CONNECT((emitter)->__CS_SIGNAL_MEMBER(signal)._rootslot, &(target)->__CS_SLOT_MEMBER(slot)); \
+    } while (0)
+#else
+    #define CS_CONNECT(emitter, signal, target, slot) \
+        __CS_CONNECT((emitter)->__CS_SIGNAL_MEMBER(signal)._rootslot, &(target)->__CS_SLOT_MEMBER(slot))
+#endif
 
 
-    // emit signal
-    int result = CS_EMIT(midi, midi_recv, 1, 2);
-    printf("result: %d\n", result);
-
-    return 0;
-}
-
-
+#define CS_EMIT(emitter, signal, args...) ({ \
+    int _ret = 0; \
+    __cs_slot_t *_tmp = (emitter)->__CS_SIGNAL_MEMBER(signal)._rootslot; \
+    while (_tmp) { \
+        _ret = ((__CS_CALLBACK_TYPE(signal)) _tmp->_callback)(_tmp->_target, emitter, args); \
+        if (_ret != 0) break; \
+        _tmp = _tmp->_next; \
+    } \
+    _ret; \
+})
